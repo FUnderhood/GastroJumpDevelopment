@@ -91,6 +91,15 @@ var basicEnemyList = [];
 
 var pointerLocX;
 
+var rotationText;
+var alpha = 0;
+var beta = 0;
+var gamma = 0;
+var accelerationText;
+var alpha2 = 0;
+var beta2 = 0;
+var gamma2 = 0;
+
 
 
 
@@ -159,6 +168,8 @@ class GameScene extends Phaser.Scene {
 
 
       // Create Player
+
+
       
       player = this.physics.add.sprite(200, 763, 'dude').setScale(2).refreshBody();
       player.setBounce(0.2);
@@ -214,7 +225,6 @@ class GameScene extends Phaser.Scene {
         lastY = getRandomPosition(lastY+20, lastY+80);
         if (firstY){
           highestYPos = lastY;
-          console.log(highestYPos);
           firstY = false;
         }
        
@@ -249,6 +259,10 @@ class GameScene extends Phaser.Scene {
 
       scoreText = this.add.text(16, (player.body.position.y - 680), 'Score: 0');
 
+      rotationText = this.add.text(16, (player.body.position.y - 600), '0, 0, 0');
+
+      accelerationText = this.add.text(16, (player.body.position.y - 520), '0, 0, 0');
+
 
       // Camera
 
@@ -262,11 +276,25 @@ class GameScene extends Phaser.Scene {
       // Input  
 
       cursors = this.input.keyboard.createCursorKeys();
+      if(window.DeviceOrientationEvent){
+        window.addEventListener("deviceorientation", orientation, false);
+      }else{
+        console.log("DeviceOrientationEvent is not supported");
+      }
+      if(window.DeviceMotionEvent){
+        window.addEventListener("devicemotion", motion, false);
+      }else{
+        console.log("DeviceMotionEvent is not supported");
+      }
 
     }
 
+    
+
 
     update() {
+    
+
 
       // Player position correction
       // (this workaround is needed because coordinates are weirdly defined)
@@ -284,13 +312,32 @@ class GameScene extends Phaser.Scene {
         pointerLocX = 0;
       }, this);
 
-      if (pointerLocX <= (width/2) && pointerLocX != 0 && !gameOver) 
+      if (pointerLocX <= (width/2) && pointerLocX != 0 && !gameOver)  
         { 
           player.setVelocityX(-250);
           player.anims.play('left', true);
         }
 
       else if (pointerLocX > (width/2) && pointerLocX != 0 && !gameOver)
+        {
+          player.setVelocityX(250);
+          player.anims.play('right', true);
+        }
+
+      else
+        {
+          player.setVelocityX(0);
+          player.anims.play('turn');
+          pointerLocX = 0;
+        }
+
+      if (gamma <= 0 && !gameOver)  
+        { 
+          player.setVelocityX(-250);
+          player.anims.play('left', true);
+        }
+
+      else if (gamma > 0 && !gameOver)
         {
           player.setVelocityX(250);
           player.anims.play('right', true);
@@ -325,7 +372,6 @@ class GameScene extends Phaser.Scene {
       if (player.body.touching.down && !gameOver)
         {
           if (touchingDrop && player.body.velocity.y > 0){
-            console.log(player.body.velocity.y);
             player.setVelocityY(400);
             touchingDrop = false;
           }
@@ -362,7 +408,14 @@ class GameScene extends Phaser.Scene {
       // UI updating 
 
       scoreText.setText("Score: " + (highestReachedDistance + scoreBonus));
-      scoreText.setPosition(16, (player.body.position.y - 530))
+      scoreText.setPosition(16, (player.body.position.y - 530));
+      rotationText.setText(alpha + ", " + beta +", " + gamma);
+      rotationText.setPosition(16, (player.body.position.y - 500));
+      accelerationText.setText(alpha2 + ", " + beta2 +", " + gamma2);
+      accelerationText.setPosition(16, (player.body.position.y - 470));
+
+
+
 
 
       // Game Over
@@ -447,7 +500,6 @@ class GameScene extends Phaser.Scene {
       // New Stage Creation
 
       if (highestReachedDistance > (1000 * stageTracker) || (highestReachedDistance > 500 && highestReachedDistance < 502)){
-        console.log("Hello");
         lastY = highestYPos;
         stageEnd = lastY - 1400;
 
@@ -579,6 +631,30 @@ function increaseScore(player_character, collectibleItem){
   scoreBonus = scoreBonus + 500;
   collectibleCollected = true;
 }
+
+
+function orientation(event){
+  console.log("Magnetometer: "
+      + event.alpha + ", "
+      + event.beta + ", "
+      + event.gamma
+  );
+  alpha = event.alpha;
+  beta = event.bet;
+  gamma = event.gamma;
+}
+
+function motion(event){
+  console.log("Accelerometer: "
+    + event.accelerationIncludingGravity.x + ", "
+    + event.accelerationIncludingGravity.y + ", "
+    + event.accelerationIncludingGravity.z
+  );
+  alpha2 = event.accelerationIncludingGravity.x;
+  beta2 = event.accelerationIncludingGravity.y;
+  gamma2 = event.accelerationIncludingGravity.z;
+}
+
 
 // Phaser config 
 

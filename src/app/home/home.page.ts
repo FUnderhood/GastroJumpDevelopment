@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import Phaser from 'phaser';
 import { Gyroscope, GyroscopeOrientation, GyroscopeOptions } from '@ionic-native/gyroscope';
 import { DeviceMotion, DeviceMotionAccelerationData } from '@ionic-native/device-motion';
+import { ControlContainer } from '@angular/forms';
 
 
 
@@ -11,16 +12,24 @@ var height = 851;
 var playerStartPositionY = 715;
 var playerStartPositionX = 200;
 
+// set control type
+// 0: keybaord arrows (desktop)
+// 1: touch/mouse (desktop and phone)
+// 2: gyroscope (phone)
+
+var controlType = 0;
+
 // Tracking 
 
 var cursors;
 var lastX = 0;
-var lastY = -2000;
+var lastY = playerStartPositionY;
 
 var stageTracker = 1;
 var score = 0;
 var scoreText;
 var gameOverText;
+var gameOverCapsText;
 var highestReachedDistance = 0;
 var playerPositionY;
 var gameOver = false;
@@ -37,6 +46,7 @@ var stageEnd;
 
 // gameObjects
 var camera;
+var redo;
 
 var ground;
 
@@ -78,6 +88,11 @@ var collectibleNumbs = 0;
 var collectibleList = [];
 var collectibleCollected = false;
 
+// collectibleText
+
+var collectibleTextNumbs = 0;
+var collectibleTextList = [];
+
 // Enemies
 var enemy_basic;
 var basicEnemyNumbs = 0;
@@ -99,6 +114,9 @@ var accelerationText;
 var alpha2 = 0;
 var beta2 = 0;
 var gamma2 = 0;
+
+var firstTime = true;
+
 
 
 
@@ -136,7 +154,8 @@ class GameScene extends Phaser.Scene {
       this.load.image('ground', 'assets/gameObjects/ground.png');
 
       // Other
-      this.load.image('blackScreen', 'assets/gameObjects/black_screen.png')
+      this.load.image('blackScreen', 'assets/gameObjects/black_screen.png');
+      this.load.image('redo', 'assets/gameObjects/redo.png');
 
 
     }
@@ -216,34 +235,6 @@ class GameScene extends Phaser.Scene {
       })
 
 
-
-
-      // Create First Stage
-
-      while (lastY <= 1000){
-        lastX = getRandomPosition(20, 300);
-        lastY = getRandomPosition(lastY+20, lastY+80);
-        if (firstY){
-          highestYPos = lastY;
-          firstY = false;
-        }
-       
-        if (lastY <= 800){
-          var platformDecision = getRandom(0, 10);
-          if (platformDecision == 0){
-            lastX = getRandomPosition(20, 150)
-            makeMovingPlaforms(lastX, lastY);
-          }
-          else if (platformDecision == 1){
-            makeDroppingPlaforms(lastX, lastY); 
-          }
-          else {
-            makeSolidPlaforms(lastX, lastY);
-          }
-        }
-      }
-
-
       // Collider and Overlap
 
       this.physics.add.collider(player, ground);
@@ -286,13 +277,14 @@ class GameScene extends Phaser.Scene {
       }else{
         console.log("DeviceMotionEvent is not supported");
       }
-
     }
 
     
 
 
     update() {
+
+      //console.log(this.scene);
     
 
 
@@ -304,21 +296,15 @@ class GameScene extends Phaser.Scene {
 
 
       // Player Controls
-      
-      this.input.on('pointerdown', function (pointer) {
-        pointerLocX = pointer.x;
-      }, this);
-      this.input.on('pointerup', function (pointer) {
-        pointerLocX = 0;
-      }, this);
 
-      if (pointerLocX <= (width/2) && pointerLocX != 0 && !gameOver)  
-        { 
+      if (controlType == 0){
+        if (cursors.left.isDown && !gameOver)
+        {
           player.setVelocityX(-250);
           player.anims.play('left', true);
         }
 
-      else if (pointerLocX > (width/2) && pointerLocX != 0 && !gameOver)
+      else if (cursors.right.isDown && !gameOver)
         {
           player.setVelocityX(250);
           player.anims.play('right', true);
@@ -328,10 +314,11 @@ class GameScene extends Phaser.Scene {
         {
           player.setVelocityX(0);
           player.anims.play('turn');
-          pointerLocX = 0;
         }
 
-      if (gamma <= 0 && !gameOver)  
+      } 
+      else if (controlType == 1){
+        if (gamma <= 0 && !gameOver)  
         { 
           player.setVelocityX(-250);
           player.anims.play('left', true);
@@ -350,25 +337,43 @@ class GameScene extends Phaser.Scene {
           pointerLocX = 0;
         }
 
-/*
-      if (cursors.left.isDown && !gameOver)
-        {
-          player.setVelocityX(-250);
-          player.anims.play('left', true);
-        }
+      }
+      else if (controlType == 2){
+        this.input.on('pointerdown', function (pointer) {
+          pointerLocX = pointer.x;
+        }, this);
+        this.input.on('pointerup', function (pointer) {
+          pointerLocX = 0;
+        }, this);
+  
+        if (pointerLocX <= (width/2) && pointerLocX != 0 && !gameOver)  
+          { 
+            player.setVelocityX(-250);
+            player.anims.play('left', true);
+          }
+  
+        else if (pointerLocX > (width/2) && pointerLocX != 0 && !gameOver)
+          {
+            player.setVelocityX(250);
+            player.anims.play('right', true);
+          }
+  
+        else
+          {
+            player.setVelocityX(0);
+            player.anims.play('turn');
+            pointerLocX = 0;
+          }
+        
+      }
+      
+      
 
-      else if (cursors.right.isDown && !gameOver)
-        {
-          player.setVelocityX(250);
-          player.anims.play('right', true);
-        }
+      
 
-      else
-        {
-          player.setVelocityX(0);
-          player.anims.play('turn');
-        }
-*/
+
+      // Permanent Jumping
+
       if (player.body.touching.down && !gameOver)
         {
           if (touchingDrop && player.body.velocity.y > 0){
@@ -427,14 +432,29 @@ class GameScene extends Phaser.Scene {
       if (gameOver && !gameOverTextCalled){
         
         if  (endScreenCountdown > 30){
+          gameOverTextCalled = true;
           black_screen = this.add.image(0, (player.body.position.y - 562), "blackScreen").setOrigin(0, 0).setScale(1.3);
           gameOverText = this.add.text(10, (player.body.position.y - 380), 'GAME OVER', { fontSize: '70px'});
-          gameOverText = this.add.text(80, (player.body.position.y - 280), 'Thank you \nfor playing!\n\nYou reached\na score of\n' + highestReachedDistance, { fontSize: '32px'});
-          gameOverTextCalled = true;
+          gameOverCapsText = this.add.text(80, (player.body.position.y - 280), 'Thank you \nfor playing!\n\nYou reached\na score of\n' + highestReachedDistance, { fontSize: '32px'});
+          redo = this.add.sprite(120, (player.body.position.y - 40), "redo").setOrigin(0, 0).setScale(2).setInteractive();
+          redo.on('pointerdown', function (pointer){
+            gameOverCapsText.setActive(true).setVisible(true);
+            gameOverText.setActive(true).setVisible(true);
+            black_screen.setActive(true).setVisible(true);
+            redo.setActive(true).setVisible(true);
+            redo.setTint(0xff0000);
+            console.log('redo');
+            restartGame();
+            
+           
+          });
+          
         }
         endScreenCountdown++;
         
       }
+
+      
     
 
 
@@ -475,6 +495,16 @@ class GameScene extends Phaser.Scene {
           jumpPowerUpList[i].destroy();
         }
       }
+      for (let i = 0; i < collectibleNumbs; i++) {
+        if ((highestReachedDistance-280) > (playerStartPositionY - collectibleList[i].y)){
+          collectibleList[i].destroy();
+        }
+      }
+      for (let i = 0; i < collectibleTextNumbs; i++) {
+        if ((highestReachedDistance-280) > (playerStartPositionY - collectibleTextList[i].y)){
+          collectibleTextList[i].destroy();
+        }
+      }
 
 
       
@@ -499,11 +529,18 @@ class GameScene extends Phaser.Scene {
 
       // New Stage Creation
 
-      if (highestReachedDistance > (1000 * stageTracker) || (highestReachedDistance > 500 && highestReachedDistance < 502)){
-        lastY = highestYPos;
-        stageEnd = lastY - 1400;
+      if ((highestReachedDistance > (1000 * stageTracker)) || firstTime){
+        console.log("FirstTime" + firstTime);
+        if (!firstTime){
+          lastY = highestYPos;
+          stageEnd = lastY - 1400;
+        }
+        else{
+          stageEnd = -2000
+          firstTime = false;
+        }
 
-       while (lastY > stageEnd){
+        while (lastY > stageEnd){
         lastX = getRandomPosition(20, 300);
         lastY = getRandomPosition(lastY-20, lastY-80);
         var platformDecision = getRandom(0, 10);
@@ -552,8 +589,9 @@ class GameScene extends Phaser.Scene {
       highestYPos = lastY;
     }
     if (collectibleCollected){
-      this.add.text(player.body.position.x, player.body.position.y, '+500', { fontSize: '32px'});
+      collectibleTextList[collectibleTextNumbs] = this.add.text(player.body.position.x, player.body.position.y, '+500', { fontSize: '32px'});
       collectibleCollected = false;
+      collectibleTextNumbs ++;
     }
 
 
@@ -653,6 +691,65 @@ function motion(event){
   alpha2 = event.accelerationIncludingGravity.x;
   beta2 = event.accelerationIncludingGravity.y;
   gamma2 = event.accelerationIncludingGravity.z;
+}
+
+function restartGame(){
+  gameOverText.setActive(false).setVisible(false);
+  black_screen.setActive(false).setVisible(false);
+  redo.setActive(false).setVisible(false);
+  gameOverCapsText.setActive(false).setVisible(false);
+
+  
+  
+  player.setPosition(playerStartPositionX, playerStartPositionY);
+  player.setImmovable(false);
+  player.body.moves = true;
+  player.clearTint();
+  gameOver = false;
+  highestReachedDistance = 0;
+  lastY = playerStartPositionY;
+  firstTime = true;
+  endScreenCountdown = 0;
+  gameOverTextCalled = false;
+  stageTracker = 1;
+  scoreBonus = 0;
+  player.setVelocityY(-650);
+  for (let i = 0; i < solidPlatformNumbs; i++) {
+    solidPlatformList[i].destroy();
+  }
+  solidPlatformNumbs = 0;
+  
+  for (let i = 0; i < droppingPlatformNumbs; i++) {
+    droppingPlatformList[i].destroy();
+  }
+  droppingPlatformNumbs = 0;
+
+  for (let i = 0; i < movingPlatformNumbs; i++) {
+    movingPlatformList[i].destroy();
+  }
+  movingPlatformNumbs = 0;
+
+  for (let i = 0; i < basicEnemyNumbs; i++) {
+    basicEnemyList[i].destroy();
+  }
+  basicEnemyNumbs = 0;
+
+  for (let i = 0; i < jumpPowerUpNumbs; i++) {
+    jumpPowerUpList[i].destroy();
+  }
+  jumpPowerUpNumbs = 0;
+
+  for (let i = 0; i < collectibleNumbs; i++) {
+    collectibleList[i].destroy();
+  }
+  collectibleNumbs = 0;
+
+  for (let i = 0; i < collectibleTextNumbs; i++) {
+    collectibleTextList[i].destroy();
+  }
+  collectibleTextNumbs = 0;
+
+
 }
 
 

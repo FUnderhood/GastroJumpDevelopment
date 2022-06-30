@@ -7,20 +7,24 @@ import { ControlContainer } from '@angular/forms';
 
 
 // GameConfigs
-var width = 393;
-var height = 851;
-var playerStartPositionY = 715;
-var playerStartPositionX = 200;
+var gameWidth = window.innerWidth; 
+var gameHeight = window.innerHeight;
 
-// set control type
+
+// Set control type
 // 0: keybaord arrows (desktop)
-// 1: touch/mouse (desktop and phone)
-// 2: gyroscope (phone)
-
+// 1: gyroscope (phone)
+// 2: touch/mouse (desktop and phone)
 var controlType = 0;
 
-// Tracking 
 
+// Player
+var player;
+var playerStartPositionY = gameHeight * 0.8;
+var playerStartPositionX = gameWidth/2;
+
+
+// Tracking 
 var cursors;
 var lastX = 0;
 var lastY = playerStartPositionY;
@@ -30,11 +34,11 @@ var score = 0;
 var scoreText;
 var gameOverText;
 var gameOverCapsText;
+var gameOverImage;
 var highestReachedDistance = 0;
 var playerPositionY;
 var gameOver = false;
 
-var movingPlatformRight = false;
 var changeDirectionTimer = 0;
 
 
@@ -74,22 +78,18 @@ var movingPlatformList = [];
 var newMovingPlatformList = [];
 var droppingPlatformList = [];
 
-// Player
-var player;
+
 
 // Power Ups
 var jumpPowerUp;
 var jumpPowerUpNumbs = 0;
 var jumpPowerUpList = [];
 
-// collectibles
+// Collectibles
 var dollarCollectible;
 var collectibleNumbs = 0;
 var collectibleList = [];
 var collectibleCollected = false;
-
-// collectibleText
-
 var collectibleTextNumbs = 0;
 var collectibleTextList = [];
 
@@ -106,25 +106,121 @@ var basicEnemyList = [];
 
 var pointerLocX;
 
+
+// Gyroscope and Acceleration
 var rotationText;
-var alpha = 0;
-var beta = 0;
-var gamma = 0;
 var accelerationText;
-var alpha2 = 0;
-var beta2 = 0;
-var gamma2 = 0;
+var alphaRot = 0;
+var betaRot = 0;
+var gammaRot = 0;
+var alphaAcc = 0;
+var betaAcc = 0;
+var gammaAcc = 0;
 
 var firstTime = true;
 
+var startGame;
+var pauseButton
+var paused;
 
+class StartScene extends Phaser.Scene {
+  constructor(config) {
+      super("StartScene");
+  }
+  preload(){
+    this.load.image('startGame', 'assets/gameObjects/startGameButton.png')
+    this.load.image('home_screen', 'assets/gameObjects/home_screen.png')
+  }
+  create(){
+    this.add.image(0, 0, 'home_screen').setOrigin(0,0);
+
+    startGame = this.add.sprite(100, 350, "startGame").setOrigin(0, 0).setInteractive();
+    startGame.on('pointerdown', function (pointer){
+      this.scene.pause();
+      this.scene.setVisible(false);
+      this.scene.launch('GameScene');
+    }, this);
+
+  }
+  update(){
+
+  }
+}
+
+class PauseScene extends Phaser.Scene {
+  constructor(config) {
+    super("PauseScene");
+  }
+preload(){
+  this.load.image('gamePaused', 'assets/gameObjects/game_paused.png')
+  }
+create(){
+  this.add.image(100, 200, 'gamePaused').setOrigin(0,0);
+  }
+update(){
+    
+  }
+}
+
+class UIScene extends Phaser.Scene {
+  constructor(config) {
+    super("UIScene");
+  }
+  preload(){
+    this.load.image('pauseButton', 'assets/gameObjects/pause_button.png');  
+  }
+  create(){
+    this.scene.bringToTop();
+
+    pauseButton = this.add.sprite(280, 20, 'pauseButton').setOrigin(0,0).setInteractive();
+    var runningGameScene = this.scene.get("GameScene");
+    var pausingGameScene = this.scene.get("PauseScene");
+    pauseButton.on('pointerdown', function (pointer){
+      if (!paused){
+        runningGameScene.scene.pause();
+        this.scene.launch('PauseScene');
+        this.scene.resume("PauseScene");
+        pausingGameScene.scene.setActive(true).setVisible(true);
+        pausingGameScene.scene.bringToTop();
+        paused = true;
+        console.log("Pausing");
+      }
+      else{
+        pausingGameScene.scene.pause();
+        pausingGameScene.scene.setActive(false).setVisible(false);
+        console.log("Unpaused");
+        runningGameScene.scene.bringToTop();
+        this.scene.resume("GameScene");
+        paused = false;
+      }
+      
+    }, this);
+    
+  }
+  update(){
+
+      
+  }
+}
+class GameOverScene extends Phaser.Scene {
+  constructor(config) {
+    super("GameOverScene");
+  }
+preload(){
+  }
+create(){
+  }
+update(){
+    
+  }
+}
 
 
 
 
 class GameScene extends Phaser.Scene {
     constructor(config) {
-        super(config);
+      super("GameScene");
     }
 
 
@@ -156,21 +252,27 @@ class GameScene extends Phaser.Scene {
       // Other
       this.load.image('blackScreen', 'assets/gameObjects/black_screen.png');
       this.load.image('redo', 'assets/gameObjects/redo.png');
+      this.load.image('gameOver', 'assets/gameObjects/game_over.png')
+
+      
+
+
+
+      gameWidth = this.sys.game.canvas.width
+      gameHeight = this.sys.game.canvas.height
 
 
     }
 
     create() {
 
-      // Controlls
+      // Create UI
+      this.scene.launch('UIScene');
 
-     
-
-
-
-      // Create Level
+      // Create Background
       this.add.image(0, 0, 'background').setOrigin(0,0);
 
+      //Create Level
       ground = this.physics.add.staticGroup();
       ground.create(0, 811, "ground").setOrigin(0,0).setScale(2).refreshBody();
 
@@ -259,7 +361,7 @@ class GameScene extends Phaser.Scene {
 
       camera = this.cameras.main;
       camera.zoom = 1;
-      camera.setBounds(0, 0, width, height);
+      camera.setBounds(0, 0, gameWidth, gameHeight);
       camera.startFollow(player);
       camera.setFollowOffset(0, 100);
 
@@ -283,11 +385,7 @@ class GameScene extends Phaser.Scene {
 
 
     update() {
-
-      //console.log(this.scene);
-    
-
-
+ 
       // Player position correction
       // (this workaround is needed because coordinates are weirdly defined)
       // The players starts at 1000, goes to 0, then goes to -1000
@@ -318,13 +416,13 @@ class GameScene extends Phaser.Scene {
 
       } 
       else if (controlType == 1){
-        if (gamma <= 0 && !gameOver)  
+        if (gammaRot <= 0 && !gameOver)  
         { 
           player.setVelocityX(-250);
           player.anims.play('left', true);
         }
 
-      else if (gamma > 0 && !gameOver)
+      else if (gammaRot > 0 && !gameOver)
         {
           player.setVelocityX(250);
           player.anims.play('right', true);
@@ -346,13 +444,13 @@ class GameScene extends Phaser.Scene {
           pointerLocX = 0;
         }, this);
   
-        if (pointerLocX <= (width/2) && pointerLocX != 0 && !gameOver)  
+        if (pointerLocX <= (gameWidth/2) && pointerLocX != 0 && !gameOver)  
           { 
             player.setVelocityX(-250);
             player.anims.play('left', true);
           }
   
-        else if (pointerLocX > (width/2) && pointerLocX != 0 && !gameOver)
+        else if (pointerLocX > (gameWidth/2) && pointerLocX != 0 && !gameOver)
           {
             player.setVelocityX(250);
             player.anims.play('right', true);
@@ -386,7 +484,7 @@ class GameScene extends Phaser.Scene {
         }
 
       
-      // Wraparound
+      // Wrap around
 
       if (player.body.position.x <= -1){
         player.setPosition(383, player.body.position.y+40);
@@ -399,7 +497,7 @@ class GameScene extends Phaser.Scene {
 
       // Camera tracking
 
-      camera.setBounds(0, (player.body.position.y - 550), width, height);
+      camera.setBounds(0, (player.body.position.y - 550), gameWidth, gameHeight);
 
      
 
@@ -414,9 +512,9 @@ class GameScene extends Phaser.Scene {
 
       scoreText.setText("Score: " + (highestReachedDistance + scoreBonus));
       scoreText.setPosition(16, (player.body.position.y - 530));
-      rotationText.setText(alpha + ", " + beta +", " + gamma);
+      rotationText.setText(alphaRot + ", " + betaRot +", " + gammaRot);
       rotationText.setPosition(16, (player.body.position.y - 500));
-      accelerationText.setText(alpha2 + ", " + beta2 +", " + gamma2);
+      accelerationText.setText(alphaAcc + ", " + betaAcc +", " + gammaAcc);
       accelerationText.setPosition(16, (player.body.position.y - 470));
 
 
@@ -434,19 +532,18 @@ class GameScene extends Phaser.Scene {
         if  (endScreenCountdown > 30){
           gameOverTextCalled = true;
           black_screen = this.add.image(0, (player.body.position.y - 562), "blackScreen").setOrigin(0, 0).setScale(1.3);
-          gameOverText = this.add.text(10, (player.body.position.y - 380), 'GAME OVER', { fontSize: '70px'});
-          gameOverCapsText = this.add.text(80, (player.body.position.y - 280), 'Thank you \nfor playing!\n\nYou reached\na score of\n' + highestReachedDistance, { fontSize: '32px'});
-          redo = this.add.sprite(120, (player.body.position.y - 40), "redo").setOrigin(0, 0).setScale(2).setInteractive();
+          //gameOverCapsText = this.add.text(10, (player.body.position.y - 380), 'GAME OVER', { fontSize: '70px'});
+          gameOverImage = this.add.image(60, (player.body.position.y -550), "gameOver").setOrigin(0, 0);
+          gameOverText = this.add.text(80, (player.body.position.y - 280), 'Thank you \nfor playing!\n\nYou achieved\na score of\n' + highestReachedDistance, { fontSize: '32px'});
+          redo = this.add.sprite(120, (player.body.position.y - 50), "redo").setOrigin(0, 0).setScale(2).setInteractive();
           redo.on('pointerdown', function (pointer){
-            gameOverCapsText.setActive(true).setVisible(true);
-            gameOverText.setActive(true).setVisible(true);
+            //gameOverCapsText.setActive(true).setVisible(true);
             black_screen.setActive(true).setVisible(true);
+            gameOverText.setActive(true).setVisible(true);
+            gameOverImage.setActive(true).setVisible(true);
             redo.setActive(true).setVisible(true);
             redo.setTint(0xff0000);
-            console.log('redo');
             restartGame();
-            
-           
           });
           
         }
@@ -530,7 +627,6 @@ class GameScene extends Phaser.Scene {
       // New Stage Creation
 
       if ((highestReachedDistance > (1000 * stageTracker)) || firstTime){
-        console.log("FirstTime" + firstTime);
         if (!firstTime){
           lastY = highestYPos;
           stageEnd = lastY - 1400;
@@ -672,34 +768,24 @@ function increaseScore(player_character, collectibleItem){
 
 
 function orientation(event){
-  console.log("Magnetometer: "
-      + event.alpha + ", "
-      + event.beta + ", "
-      + event.gamma
-  );
-  alpha = event.alpha;
-  beta = event.bet;
-  gamma = event.gamma;
+  alphaRot = event.alpha;
+  betaRot = event.bet;
+  gammaRot = event.gamma;
 }
 
 function motion(event){
-  console.log("Accelerometer: "
-    + event.accelerationIncludingGravity.x + ", "
-    + event.accelerationIncludingGravity.y + ", "
-    + event.accelerationIncludingGravity.z
-  );
-  alpha2 = event.accelerationIncludingGravity.x;
-  beta2 = event.accelerationIncludingGravity.y;
-  gamma2 = event.accelerationIncludingGravity.z;
+  alphaAcc = event.accelerationIncludingGravity.x;
+  betaAcc = event.accelerationIncludingGravity.y;
+  gammaAcc = event.accelerationIncludingGravity.z;
 }
 
 function restartGame(){
-  gameOverText.setActive(false).setVisible(false);
   black_screen.setActive(false).setVisible(false);
+  gameOverText.setActive(false).setVisible(false);
+  gameOverImage.setActive(false).setVisible(false);
   redo.setActive(false).setVisible(false);
-  gameOverCapsText.setActive(false).setVisible(false);
+  //gameOverCapsText.setActive(false).setVisible(false);
 
-  
   
   player.setPosition(playerStartPositionX, playerStartPositionY);
   player.setImmovable(false);
@@ -767,9 +853,9 @@ export class HomePage implements OnInit {
 
     constructor() {
         this.config = {
-            type: Phaser.AUTO,
-            width: 393,
-            height: 851,
+            type: Phaser.CANVAS,
+            width: window.innerWidth * window.devicePixelRatio,
+            height: window.innerHeight  * window.devicePixelRatio,
             backgroundColor: '#8bcbfc',
             physics: {
                 default: 'arcade',
@@ -779,7 +865,7 @@ export class HomePage implements OnInit {
                 }
             },
             parent: 'game',
-            scene: GameScene
+            scene: [StartScene, GameScene, PauseScene, UIScene, GameOverScene]
         };
     }
 

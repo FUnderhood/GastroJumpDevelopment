@@ -3,10 +3,15 @@ import Phaser from 'phaser';
 import { Gyroscope, GyroscopeOrientation, GyroscopeOptions } from '@ionic-native/gyroscope';
 import { DeviceMotion, DeviceMotionAccelerationData } from '@ionic-native/device-motion';
 import { ControlContainer } from '@angular/forms';
+import { BaseScene } from "phaser-utility/scenes/BaseScene";
+
+
 
 
 
 // GameConfigs
+
+
 var gameWidth = window.innerWidth; 
 var gameHeight = window.innerHeight;
 
@@ -15,6 +20,7 @@ var gameHeight = window.innerHeight;
 // 0: keybaord arrows (desktop)
 // 1: gyroscope (phone)
 // 2: touch/mouse (desktop and phone)
+// 3: advanced gyroscope (phone)
 var controlType = 0;
 
 
@@ -22,6 +28,7 @@ var controlType = 0;
 var player;
 var playerStartPositionY = gameHeight * 0.8;
 var playerStartPositionX = gameWidth/2;
+var highestPlayerBodyPosition = playerStartPositionY;
 
 
 // Tracking 
@@ -116,12 +123,20 @@ var gammaRot = 0;
 var alphaAcc = 0;
 var betaAcc = 0;
 var gammaAcc = 0;
+var gammaRotNeutral = 0;
 
 var firstTime = true;
 
 var startGame;
 var pauseButton
 var paused;
+
+var touchButton;
+var motionButton;
+
+var uiGameScene
+
+var bigBackgroundsPlaced
 
 class StartScene extends Phaser.Scene {
   constructor(config) {
@@ -130,15 +145,50 @@ class StartScene extends Phaser.Scene {
   preload(){
     this.load.image('startGame', 'assets/gameObjects/startGameButton.png')
     this.load.image('home_screen', 'assets/gameObjects/home_screen.png')
+    this.load.image('touchButton', 'assets/gameObjects/touch_button.png')
+    this.load.image('motionButton', 'assets/gameObjects/motion_button.png')
+    this.load.image('touchButtonRed', 'assets/gameObjects/touch_button_red.png')
+    this.load.image('motionButtonRed', 'assets/gameObjects/motion_button_red.png')
   }
   create(){
-    this.add.image(0, 0, 'home_screen').setOrigin(0,0);
+
+    console.log("Width:" + gameWidth + " Height:" + gameHeight);
+    var runningGameScene = this.scene.get("GameScene");
+    var pausingGameScene = this.scene.get("PauseScene");
+
+    //this.add.image(0, 0, 'home_screen').setOrigin(0,0);
+
+
+    touchButton = this.add.sprite(gameWidth*0.1, gameHeight*0.6, 'touchButton').setOrigin(0,0).setInteractive();
+    motionButton = this.add.sprite(gameWidth*0.1, gameHeight*0.7, 'motionButton').setOrigin(0,0).setInteractive();
+    touchButton.on('pointerdown', function (pointer){
+      touchButton.setTexture('touchButtonRed')
+      motionButton.setTexture('motionButton')
+      console.log("Touch");
+      controlType = 2;
+    });
+    motionButton.on('pointerdown', function (pointer){
+      touchButton.setTexture('touchButton')
+      motionButton.setTexture('motionButtonRed')
+      console.log("Motion");
+      controlType = 3;
+    });
+
+
+
 
     startGame = this.add.sprite(100, 350, "startGame").setOrigin(0, 0).setInteractive();
     startGame.on('pointerdown', function (pointer){
+      console.log(runningGameScene.scale.orientation);
+      runningGameScene.scale.lockOrientation('portrait-primary');
+      console.log(pausingGameScene.scale.orientation);
+      pausingGameScene.scale.lockOrientation('portrait-primary');
+      
       this.scene.pause();
       this.scene.setVisible(false);
+      
       this.scene.launch('GameScene');
+
     }, this);
 
   }
@@ -153,9 +203,25 @@ class PauseScene extends Phaser.Scene {
   }
 preload(){
   this.load.image('gamePaused', 'assets/gameObjects/game_paused.png')
+  this.load.image('colourOverlay', 'assets/gameObjects/colour_overlay.png')
   }
 create(){
+  this.add.image(0, 0, 'colourOverlay').setOrigin(0,0);
   this.add.image(100, 200, 'gamePaused').setOrigin(0,0);
+  touchButton = this.add.sprite(10, 600, 'touchButton').setOrigin(0,0).setInteractive().setScale(0.5);
+  motionButton = this.add.sprite(210, 600, 'motionButton').setOrigin(0,0).setInteractive().setScale(0.5);
+  touchButton.on('pointerdown', function (pointer){
+    touchButton.setTexture('touchButtonRed')
+    motionButton.setTexture('motionButton')
+    console.log("Touch");
+    controlType = 2;
+    });
+  motionButton.on('pointerdown', function (pointer){
+    touchButton.setTexture('touchButton')
+    motionButton.setTexture('motionButtonRed')
+    console.log("Motion");
+    controlType = 3;
+    });
   }
 update(){
     
@@ -168,37 +234,53 @@ class UIScene extends Phaser.Scene {
   }
   preload(){
     this.load.image('pauseButton', 'assets/gameObjects/pause_button.png');  
+    this.load.image('resumeButton', 'assets/gameObjects/resume_button.png');  
   }
   create(){
     this.scene.bringToTop();
 
-    pauseButton = this.add.sprite(280, 20, 'pauseButton').setOrigin(0,0).setInteractive();
+    // Create UI
+    scoreText = this.add.text(16, 20, 'Score: 0');
+    //rotationText = this.add.text(16, 60, '0, 0, 0');
+    //accelerationText = this.add.text(16, 100, '0, 0, 0');
+    pauseButton = this.add.sprite(gameWidth-50, 10, 'pauseButton').setOrigin(0,0).setInteractive().setScale(0.8);
+
+
+    // Game Pausing and Resuming
     var runningGameScene = this.scene.get("GameScene");
     var pausingGameScene = this.scene.get("PauseScene");
+
     pauseButton.on('pointerdown', function (pointer){
       if (!paused){
+        pauseButton.setTexture('resumeButton');
         runningGameScene.scene.pause();
         this.scene.launch('PauseScene');
         this.scene.resume("PauseScene");
         pausingGameScene.scene.setActive(true).setVisible(true);
         pausingGameScene.scene.bringToTop();
         paused = true;
-        console.log("Pausing");
       }
       else{
+        pauseButton.setTexture('pauseButton');
         pausingGameScene.scene.pause();
         pausingGameScene.scene.setActive(false).setVisible(false);
-        console.log("Unpaused");
         runningGameScene.scene.bringToTop();
         this.scene.resume("GameScene");
         paused = false;
       }
-      
+      this.scene.bringToTop();
     }, this);
+
+    
     
   }
   update(){
 
+    // UI updating 
+    scoreText.setText("Score: " + (highestReachedDistance + scoreBonus));
+    //rotationText.setText(alphaRot + ", " + betaRot +", " + gammaRot);
+    //accelerationText.setText(alphaAcc + ", " + betaAcc +", " + gammaAcc);
+ 
       
   }
 }
@@ -207,15 +289,34 @@ class GameOverScene extends Phaser.Scene {
     super("GameOverScene");
   }
 preload(){
+  this.load.image('blackScreen', 'assets/gameObjects/black_screen.png');
+  this.load.image('redo', 'assets/gameObjects/redo.png');
+  this.load.image('gameOver', 'assets/gameObjects/game_over.png') 
+
   }
 create(){
+  var xPlacement = this.cameras.main.width / 2;
+  var yPlacement = this.cameras.main.height / 2;
+
+  this.scene.setActive(true).setVisible(true);
+  black_screen = this.add.image(0, 0, "blackScreen").setOrigin(0,0);
+  gameOverImage = this.add.image(0, 0 , "gameOver");
+  gameOverImage.setPosition(xPlacement, yPlacement * 0.3); 
+  gameOverText = this.add.text(0, 0, 'Thank you \nfor playing!\n\nYou achieved\na score of\n' + highestReachedDistance, { fontSize: '32px'});
+  gameOverText.setPosition(xPlacement-(gameOverText.width / 2), yPlacement); 
+  redo = this.add.sprite(0, 0, "redo").setInteractive();
+  redo.setPosition(xPlacement-(redo.width / 2), yPlacement*1.6); 
+  redo.on('pointerdown', function (pointer){
+    uiGameScene.scene.setActive(true).setVisible(true);
+    this.scene.setActive(false).setVisible(false);
+    //this.scene.remove("GameOverScene");
+    restartGame();
+    }, this);
   }
 update(){
     
   }
 }
-
-
 
 
 class GameScene extends Phaser.Scene {
@@ -227,10 +328,12 @@ class GameScene extends Phaser.Scene {
     preload() {
 
       // Background
-      this.load.image('background', 'assets/gameObjects/background.png')
+      this.load.image('background', 'assets/gameObjects/background_stage_1.png');
       
       // Player
       this.load.spritesheet('dude', 'assets/gameObjects/dude.png', { frameWidth: 32, frameHeight: 48 });
+      this.load.image('gastroGator', 'assets/gameObjects/GastroGator.png')
+
 
       // Enemies
       this.load.image('basicEnemy', 'assets/gameObjects/enemy_basic.png')
@@ -249,32 +352,33 @@ class GameScene extends Phaser.Scene {
       // World
       this.load.image('ground', 'assets/gameObjects/ground.png');
 
-      // Other
-      this.load.image('blackScreen', 'assets/gameObjects/black_screen.png');
-      this.load.image('redo', 'assets/gameObjects/redo.png');
-      this.load.image('gameOver', 'assets/gameObjects/game_over.png')
-
-      
-
-
-
-      gameWidth = this.sys.game.canvas.width
-      gameHeight = this.sys.game.canvas.height
-
-
     }
 
     create() {
+
+      // get Gyroscope direction
+      gammaRotNeutral = gammaRot;
+
 
       // Create UI
       this.scene.launch('UIScene');
 
       // Create Background
-      this.add.image(0, 0, 'background').setOrigin(0,0);
+      this.add.image(0, gameHeight, 'background').setOrigin(0,0).setScale(2);
+      for (let i = 0; i < 100; i++){
+        for (let j = 0; j < 5; j++)
+          this.add.image(j*400, gameHeight + (i*-400), 'background').setOrigin(0,0).setScale(2);
+      }
 
       //Create Level
+      
       ground = this.physics.add.staticGroup();
-      ground.create(0, 811, "ground").setOrigin(0,0).setScale(2).refreshBody();
+      var ground1 = ground.create(0, gameHeight * 0.95, "ground").setOrigin(0,0).setScale(2).refreshBody();
+      var groundlength = ground1.width;
+      while (groundlength <= gameWidth){
+        ground.create(groundlength, gameHeight * 0.95, "ground").setOrigin(0,0).setScale(2).refreshBody();
+        groundlength += ground1.width;
+      }
 
       solidPlatforms = this.physics.add.group({
         allowGravity: false
@@ -292,11 +396,11 @@ class GameScene extends Phaser.Scene {
 
 
       
-      player = this.physics.add.sprite(200, 763, 'dude').setScale(2).refreshBody();
+      player = this.physics.add.sprite(gameWidth/2, gameHeight*0.8, 'gastroGator').refreshBody();
       player.setBounce(0.2);
       player.body.setGravityY(300)
       
-
+/*
       this.anims.create({
         key: 'left',
         frames: this.anims.generateFrameNumbers('dude', { start: 0, end: 3 }),
@@ -316,7 +420,7 @@ class GameScene extends Phaser.Scene {
           frameRate: 10,
           repeat: -1
       });
-
+*/
 
       // Create Enemy
 
@@ -348,13 +452,7 @@ class GameScene extends Phaser.Scene {
       this.physics.add.overlap(player, dollarCollectible, increaseScore);
 
 
-      // Create UI
-
-      scoreText = this.add.text(16, (player.body.position.y - 680), 'Score: 0');
-
-      rotationText = this.add.text(16, (player.body.position.y - 600), '0, 0, 0');
-
-      accelerationText = this.add.text(16, (player.body.position.y - 520), '0, 0, 0');
+      
 
 
       // Camera
@@ -363,7 +461,7 @@ class GameScene extends Phaser.Scene {
       camera.zoom = 1;
       camera.setBounds(0, 0, gameWidth, gameHeight);
       camera.startFollow(player);
-      camera.setFollowOffset(0, 100);
+      camera.setFollowOffset(0, gameHeight*0.1);
 
 
       // Input  
@@ -439,20 +537,22 @@ class GameScene extends Phaser.Scene {
       else if (controlType == 2){
         this.input.on('pointerdown', function (pointer) {
           pointerLocX = pointer.x;
+          console.log(pointerLocX);
         }, this);
         this.input.on('pointerup', function (pointer) {
           pointerLocX = 0;
         }, this);
   
-        if (pointerLocX <= (gameWidth/2) && pointerLocX != 0 && !gameOver)  
+        if (pointerLocX <= (player.x) && pointerLocX != 0 && !gameOver)  
           { 
             player.setVelocityX(-250);
             player.anims.play('left', true);
           }
   
-        else if (pointerLocX > (gameWidth/2) && pointerLocX != 0 && !gameOver)
+        else if (pointerLocX > (player.x) && pointerLocX != 0 && !gameOver)
           {
             player.setVelocityX(250);
+            
             player.anims.play('right', true);
           }
   
@@ -463,6 +563,36 @@ class GameScene extends Phaser.Scene {
             pointerLocX = 0;
           }
         
+      }
+      else if (controlType == 3 && !gameOver){
+        if ((gammaRot >= gammaRotNeutral- 5) && (gammaRot <= gammaRotNeutral + 5)){
+          player.setVelocityX(0);
+          player.anims.play('turn');
+        }
+        else if (!gameOver){
+          var playerVelocity = (gammaRot - gammaRotNeutral) * 10;
+          player.setVelocityX(playerVelocity);  
+          if (gammaRot < gammaRotNeutral)  
+          { 
+            player.anims.play('left', true);
+          }
+
+          else if (gammaRot > gammaRotNeutral)
+            {
+              player.anims.play('right', true);
+            }
+          else
+            {
+              player.anims.play('turn');
+            }
+
+        }
+        else {
+          player.setVelocityX(0);
+          player.anims.play('turn');
+        }
+        
+
       }
       
       
@@ -479,26 +609,27 @@ class GameScene extends Phaser.Scene {
             touchingDrop = false;
           }
           else{
-            player.setVelocityY(-650);
+            player.setVelocityY(-750);
           }
         }
 
       
       // Wrap around
 
-      if (player.body.position.x <= -1){
-        player.setPosition(383, player.body.position.y+40);
+      if (player.body.position.x < 0){
+        player.setPosition(gameWidth-(player.width*0.2), player.body.position.y);
       }
 
-      if (player.body.position.x >= 394){
-        player.setPosition(35, player.body.position.y+40);
+      if (player.body.position.x > gameWidth){
+        player.setPosition(player.width*0.5, player.body.position.y);
       }
-
+      
 
       // Camera tracking
-
-      camera.setBounds(0, (player.body.position.y - 550), gameWidth, gameHeight);
-
+      if (player.body.position.y < highestPlayerBodyPosition){
+        highestPlayerBodyPosition = player.body.position.y;
+      }
+      camera.setBounds(0, (highestPlayerBodyPosition - (gameHeight/2)), gameWidth, gameHeight);
      
 
 
@@ -508,22 +639,10 @@ class GameScene extends Phaser.Scene {
         highestReachedDistance = playerPositionY;
       }  
 
-      // UI updating 
-
-      scoreText.setText("Score: " + (highestReachedDistance + scoreBonus));
-      scoreText.setPosition(16, (player.body.position.y - 530));
-      rotationText.setText(alphaRot + ", " + betaRot +", " + gammaRot);
-      rotationText.setPosition(16, (player.body.position.y - 500));
-      accelerationText.setText(alphaAcc + ", " + betaAcc +", " + gammaAcc);
-      accelerationText.setPosition(16, (player.body.position.y - 470));
-
-
-
-
 
       // Game Over
 
-      if (playerPositionY <= highestReachedDistance - 500 && gameOver == false){
+      if (playerPositionY <= highestReachedDistance -  (gameHeight/2) && gameOver == false){
         killPlayer();
       }
 
@@ -531,20 +650,14 @@ class GameScene extends Phaser.Scene {
         
         if  (endScreenCountdown > 30){
           gameOverTextCalled = true;
-          black_screen = this.add.image(0, (player.body.position.y - 562), "blackScreen").setOrigin(0, 0).setScale(1.3);
-          //gameOverCapsText = this.add.text(10, (player.body.position.y - 380), 'GAME OVER', { fontSize: '70px'});
-          gameOverImage = this.add.image(60, (player.body.position.y -550), "gameOver").setOrigin(0, 0);
-          gameOverText = this.add.text(80, (player.body.position.y - 280), 'Thank you \nfor playing!\n\nYou achieved\na score of\n' + highestReachedDistance, { fontSize: '32px'});
-          redo = this.add.sprite(120, (player.body.position.y - 50), "redo").setOrigin(0, 0).setScale(2).setInteractive();
-          redo.on('pointerdown', function (pointer){
-            //gameOverCapsText.setActive(true).setVisible(true);
-            black_screen.setActive(true).setVisible(true);
-            gameOverText.setActive(true).setVisible(true);
-            gameOverImage.setActive(true).setVisible(true);
-            redo.setActive(true).setVisible(true);
-            redo.setTint(0xff0000);
-            restartGame();
-          });
+          this.scene.launch("GameOverScene");
+          //var gameOverGameScene = this.scene.get("GameOverScene");
+          //gameOverGameScene.scene.bringToTop();
+
+          
+          uiGameScene = this.scene.get("UIScene");
+          uiGameScene.scene.setActive(false).setVisible(false);
+          
           
         }
         endScreenCountdown++;
@@ -558,18 +671,18 @@ class GameScene extends Phaser.Scene {
       // Check for deletion
 
       for (let i = 0; i < solidPlatformNumbs; i++) {
-        if ((highestReachedDistance-300) > (playerStartPositionY - solidPlatformList[i].y)){
+        if ((highestReachedDistance-(gameHeight/2)) > (playerStartPositionY - solidPlatformList[i].y)){
           solidPlatformList[i].destroy();
         }
       }
       
       for (let i = 0; i < droppingPlatformNumbs; i++) {
-        if ((highestReachedDistance-300) > (playerStartPositionY - droppingPlatformList[i].y)){
+        if ((highestReachedDistance-(gameHeight/2)) > (playerStartPositionY - droppingPlatformList[i].y)){
           droppingPlatformList[i].destroy();
         }
       }
       for (let i = 0; i < movingPlatformNumbs; i++) {
-        if ((highestReachedDistance-300) > (playerStartPositionY - movingPlatformList[i].y)){
+        if ((highestReachedDistance-(gameHeight/2)) > (playerStartPositionY - movingPlatformList[i].y)){
           movingPlatformList[i].destroy();
         }
         else{
@@ -583,22 +696,22 @@ class GameScene extends Phaser.Scene {
       movingPlatformNumbs = movingPlatformList.length;
 
       for (let i = 0; i < basicEnemyNumbs; i++) {
-        if ((highestReachedDistance-280) > (playerStartPositionY - basicEnemyList[i].y)){
+        if ((highestReachedDistance-(gameHeight/2)) > (playerStartPositionY - basicEnemyList[i].y)){
           basicEnemyList[i].destroy();
         }
       }
       for (let i = 0; i < jumpPowerUpNumbs; i++) {
-        if ((highestReachedDistance-280) > (playerStartPositionY - jumpPowerUpList[i].y)){
+        if ((highestReachedDistance-(gameHeight/2)) > (playerStartPositionY - jumpPowerUpList[i].y)){
           jumpPowerUpList[i].destroy();
         }
       }
       for (let i = 0; i < collectibleNumbs; i++) {
-        if ((highestReachedDistance-280) > (playerStartPositionY - collectibleList[i].y)){
+        if ((highestReachedDistance-(gameHeight/2)) > (playerStartPositionY - collectibleList[i].y)){
           collectibleList[i].destroy();
         }
       }
       for (let i = 0; i < collectibleTextNumbs; i++) {
-        if ((highestReachedDistance-280) > (playerStartPositionY - collectibleTextList[i].y)){
+        if ((highestReachedDistance-(gameHeight/2)) > (playerStartPositionY - collectibleTextList[i].y)){
           collectibleTextList[i].destroy();
         }
       }
@@ -637,53 +750,72 @@ class GameScene extends Phaser.Scene {
         }
 
         while (lastY > stageEnd){
-        lastX = getRandomPosition(20, 300);
-        lastY = getRandomPosition(lastY-20, lastY-80);
-        var platformDecision = getRandom(0, 10);
-        var enemyDecision = getRandom(0, 20);
-        var powerUpDecision = getRandom(0, 15);
-        var collectibleDecision = getRandom(0, 10);
-        var lastSolidPlatform = false;
-        if (platformDecision == 0){
-          makeMovingPlaforms(lastX, lastY);
-        }
-        else if (platformDecision == 1){
-          makeDroppingPlaforms(lastX, lastY); 
-        }
-        else {
-          makeSolidPlaforms(lastX, lastY);
-          lastSolidPlatform = true;
-        }
-        if (enemyDecision == 0 && lastSolidPlatform){
-          basicEnemyList[basicEnemyNumbs] = enemy_basic.create(lastX+20, lastY-50, "basicEnemy").setOrigin(0,0).setScale(1);
-          basicEnemyList[basicEnemyNumbs].setImmovable(true);
-          lastSolidPlatform = false;
-          basicEnemyNumbs ++;
+          lastX = 0;
+          while (lastX < gameWidth-40){
+            lastX = getRandomPosition(lastX + 40, lastX + 280);
+            lastY = getRandomPosition(lastY-40, lastY-120);
+            var platformDecision = getRandom(0, 10);
+            var enemyDecision = getRandom(0, 20);
+            var powerUpDecision = getRandom(0, 8);
+            var collectibleDecision = getRandom(0, 10);
+            var lastSolidPlatform = false;
+            if (platformDecision == 0){
+              makeMovingPlaforms(lastX, lastY);
+            }
+            else if (platformDecision == 1){
+              makeDroppingPlaforms(lastX, lastY); 
+            }
+            else if (platformDecision == 2){
+              makeSolidPlaforms(lastX, lastY);
+              makeSolidPlaforms((lastX +30), lastY);
+              makeSolidPlaforms(lastX + getRandom(-20, 20), lastY + getRandom(-40, 40));
+              lastSolidPlatform = true;
+            }
+            else if (platformDecision == 3){
+              makeSolidPlaforms(lastX, lastY);
+              makeSolidPlaforms(lastX + getRandom(-20, 20), lastY + getRandom(-40, 40));
+              makeSolidPlaforms(lastX + getRandom(-20, 20), lastY + getRandom(-40, 40));
+              lastSolidPlatform = true;
+            }
+            else{
+              makeSolidPlaforms(lastX, lastY);
+              makeSolidPlaforms(lastX + getRandom(-20, 20), lastY + getRandom(-80, 80));
+              lastSolidPlatform = true;
+            }
+            if (enemyDecision == 0 && lastSolidPlatform){
+              basicEnemyList[basicEnemyNumbs] = enemy_basic.create(lastX+20, lastY-50, "basicEnemy").setOrigin(0,0).setScale(1);
+              basicEnemyList[basicEnemyNumbs].setImmovable(true);
+              lastSolidPlatform = false;
+              basicEnemyNumbs ++;
 
-        }
-        if (powerUpDecision == 0 && lastSolidPlatform && enemyDecision != 0){
-          jumpPowerUpList[jumpPowerUpNumbs] = jumpPowerUp.create(lastX+20, lastY-21, "burgerPowerUp").setOrigin(0,0).setScale(1);
-          jumpPowerUpList[jumpPowerUpNumbs].body.checkCollision.down = false;
-          jumpPowerUpList[jumpPowerUpNumbs].body.checkCollision.left = false;
-          jumpPowerUpList[jumpPowerUpNumbs].body.checkCollision.right = false;
-          jumpPowerUpList[jumpPowerUpNumbs].setImmovable(true);
+            }
+            if (powerUpDecision == 0 && lastSolidPlatform && enemyDecision != 0){
+              jumpPowerUpList[jumpPowerUpNumbs] = jumpPowerUp.create(lastX+20, lastY-21, "burgerPowerUp").setOrigin(0,0).setScale(1);
+              jumpPowerUpList[jumpPowerUpNumbs].body.checkCollision.down = false;
+              jumpPowerUpList[jumpPowerUpNumbs].body.checkCollision.left = false;
+              jumpPowerUpList[jumpPowerUpNumbs].body.checkCollision.right = false;
+              jumpPowerUpList[jumpPowerUpNumbs].setImmovable(true);
 
-          lastSolidPlatform = false;
-          jumpPowerUpNumbs ++;
+              lastSolidPlatform = false;
+              jumpPowerUpNumbs ++;
 
-        }
-        if (collectibleDecision == 0 && lastSolidPlatform){
-          collectibleList[collectibleNumbs] = dollarCollectible.create(getRandomPosition(30, 250), getRandomPosition(lastY-20, lastY-120), 'dollarCollectible').setOrigin(0,0).setScale(1);
-          collectibleList[collectibleNumbs].setImmovable(true);
+            }
+            if (collectibleDecision == 0 && lastSolidPlatform){
+              collectibleList[collectibleNumbs] = dollarCollectible.create(getRandomPosition(30, 250), getRandomPosition(lastY-20, lastY-120), 'dollarCollectible').setOrigin(0,0).setScale(1);
+              collectibleList[collectibleNumbs].setImmovable(true);
 
-          lastSolidPlatform = false;
-          collectibleNumbs ++;
+              lastSolidPlatform = false;
+              collectibleNumbs ++;
 
-        }
+            }
+
+          }
+          
       }
       stageTracker++;
       highestYPos = lastY;
     }
+
     if (collectibleCollected){
       collectibleTextList[collectibleTextNumbs] = this.add.text(player.body.position.x, player.body.position.y, '+500', { fontSize: '32px'});
       collectibleCollected = false;
@@ -780,17 +912,14 @@ function motion(event){
 }
 
 function restartGame(){
-  black_screen.setActive(false).setVisible(false);
-  gameOverText.setActive(false).setVisible(false);
-  gameOverImage.setActive(false).setVisible(false);
-  redo.setActive(false).setVisible(false);
-  //gameOverCapsText.setActive(false).setVisible(false);
 
-  
   player.setPosition(playerStartPositionX, playerStartPositionY);
   player.setImmovable(false);
   player.body.moves = true;
   player.clearTint();
+  player.setVelocityY(-650);
+
+
   gameOver = false;
   highestReachedDistance = 0;
   lastY = playerStartPositionY;
@@ -799,7 +928,8 @@ function restartGame(){
   gameOverTextCalled = false;
   stageTracker = 1;
   scoreBonus = 0;
-  player.setVelocityY(-650);
+  highestPlayerBodyPosition = playerStartPositionY
+
   for (let i = 0; i < solidPlatformNumbs; i++) {
     solidPlatformList[i].destroy();
   }
@@ -834,10 +964,8 @@ function restartGame(){
     collectibleTextList[i].destroy();
   }
   collectibleTextNumbs = 0;
-
-
+  
 }
-
 
 // Phaser config 
 
@@ -850,12 +978,11 @@ export class HomePage implements OnInit {
     phaserGame: Phaser.Game;
     config: Phaser.Types.Core.GameConfig;
 
-
     constructor() {
         this.config = {
             type: Phaser.CANVAS,
-            width: window.innerWidth * window.devicePixelRatio,
-            height: window.innerHeight  * window.devicePixelRatio,
+            width: window.innerWidth,
+            height: window.innerHeight,
             backgroundColor: '#8bcbfc',
             physics: {
                 default: 'arcade',
@@ -864,15 +991,26 @@ export class HomePage implements OnInit {
                   debug: false
                 }
             },
+            scale:{
+              mode: Phaser.Scale.WIDTH_CONTROLS_HEIGHT,
+              autoCenter: Phaser.Scale.CENTER_BOTH,
+              min: {
+                width: 360,
+                height: 640
+              },
+              max: {
+                width: 1080,
+                height: 1920
+              },
+              zoom: 1,
+              autoRound: false,
+            }, 
             parent: 'game',
-            scene: [StartScene, GameScene, PauseScene, UIScene, GameOverScene]
+            scene: [StartScene, GameScene, PauseScene, UIScene, GameOverScene],
         };
     }
-
     ngOnInit(): void {
         this.phaserGame = new Phaser.Game(this.config);
     }
-
-    
 }
 

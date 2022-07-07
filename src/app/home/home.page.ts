@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import Phaser from 'phaser';
+import CONFIG from 'src/config'
 import { Gyroscope, GyroscopeOrientation, GyroscopeOptions } from '@ionic-native/gyroscope';
 import { DeviceMotion, DeviceMotionAccelerationData } from '@ionic-native/device-motion';
 import { ControlContainer } from '@angular/forms';
@@ -11,9 +12,8 @@ import { BaseScene } from "phaser-utility/scenes/BaseScene";
 
 // GameConfigs
 
-
-var gameWidth = window.innerWidth; 
-var gameHeight = window.innerHeight;
+var gameWidth = CONFIG.DEFAULT_WIDTH;
+var gameHeight = CONFIG.DEFAULT_HEIGHT;
 
 
 // Set control type
@@ -138,6 +138,9 @@ var uiGameScene
 
 var bigBackgroundsPlaced
 
+var startGameScene = false;
+var launchUI = true;
+
 class StartScene extends Phaser.Scene {
   constructor(config) {
       super("StartScene");
@@ -149,18 +152,23 @@ class StartScene extends Phaser.Scene {
     this.load.image('motionButton', 'assets/gameObjects/motion_button.png')
     this.load.image('touchButtonRed', 'assets/gameObjects/touch_button_red.png')
     this.load.image('motionButtonRed', 'assets/gameObjects/motion_button_red.png')
+   
   }
   create(){
+    this.scene.launch('GameScene');
+    this.scene.bringToTop();
 
-    console.log("Width:" + gameWidth + " Height:" + gameHeight);
+
+    
+    console.log("Width:" + this.sys.game.canvas.width + " Height:" + this.sys.game.canvas.height);
     var runningGameScene = this.scene.get("GameScene");
     var pausingGameScene = this.scene.get("PauseScene");
 
     //this.add.image(0, 0, 'home_screen').setOrigin(0,0);
 
 
-    touchButton = this.add.sprite(gameWidth*0.1, gameHeight*0.6, 'touchButton').setOrigin(0,0).setInteractive();
-    motionButton = this.add.sprite(gameWidth*0.1, gameHeight*0.7, 'motionButton').setOrigin(0,0).setInteractive();
+    touchButton = this.add.sprite(gameWidth*0.1, gameHeight*0.55, 'touchButton').setOrigin(0,0).setInteractive();
+    motionButton = this.add.sprite(gameWidth*0.1, gameHeight*0.75, 'motionButton').setOrigin(0,0).setInteractive();
     touchButton.on('pointerdown', function (pointer){
       touchButton.setTexture('touchButtonRed')
       motionButton.setTexture('motionButton')
@@ -186,13 +194,11 @@ class StartScene extends Phaser.Scene {
       
       this.scene.pause();
       this.scene.setVisible(false);
-      
-      this.scene.launch('GameScene');
+      startGameScene = true;
+      //this.scene.launch('GameScene');
 
     }, this);
-
-  }
-  update(){
+    
 
   }
 }
@@ -299,6 +305,7 @@ create(){
   var yPlacement = this.cameras.main.height / 2;
 
   this.scene.setActive(true).setVisible(true);
+  this.scene.bringToTop();
   black_screen = this.add.image(0, 0, "blackScreen").setOrigin(0,0);
   gameOverImage = this.add.image(0, 0 , "gameOver");
   gameOverImage.setPosition(xPlacement, yPlacement * 0.3); 
@@ -360,25 +367,14 @@ class GameScene extends Phaser.Scene {
       gammaRotNeutral = gammaRot;
 
 
-      // Create UI
-      this.scene.launch('UIScene');
 
-      // Create Background
-      this.add.image(0, gameHeight, 'background').setOrigin(0,0).setScale(2);
-      for (let i = 0; i < 100; i++){
-        for (let j = 0; j < 5; j++)
-          this.add.image(j*400, gameHeight + (i*-400), 'background').setOrigin(0,0).setScale(2);
-      }
+  
 
       //Create Level
       
       ground = this.physics.add.staticGroup();
-      var ground1 = ground.create(0, gameHeight * 0.95, "ground").setOrigin(0,0).setScale(2).refreshBody();
-      var groundlength = ground1.width;
-      while (groundlength <= gameWidth){
-        ground.create(groundlength, gameHeight * 0.95, "ground").setOrigin(0,0).setScale(2).refreshBody();
-        groundlength += ground1.width;
-      }
+      ground.create(0, gameHeight * 0.95, "ground").setOrigin(0,0).setScale(2).refreshBody();
+    
 
       solidPlatforms = this.physics.add.group({
         allowGravity: false
@@ -460,7 +456,9 @@ class GameScene extends Phaser.Scene {
       camera = this.cameras.main;
       camera.zoom = 1;
       camera.setBounds(0, 0, gameWidth, gameHeight);
-      camera.startFollow(player);
+      if (startGameScene){
+        camera.startFollow(player);
+      }
       camera.setFollowOffset(0, gameHeight*0.1);
 
 
@@ -483,6 +481,13 @@ class GameScene extends Phaser.Scene {
 
 
     update() {
+
+      
+      // Create UI
+      if (startGameScene && launchUI){
+        this.scene.launch('UIScene');
+        launchUI = false;
+      }
  
       // Player position correction
       // (this workaround is needed because coordinates are weirdly defined)
@@ -602,7 +607,7 @@ class GameScene extends Phaser.Scene {
 
       // Permanent Jumping
 
-      if (player.body.touching.down && !gameOver)
+      if (player.body.touching.down && !gameOver && startGameScene)
         {
           if (touchingDrop && player.body.velocity.y > 0){
             player.setVelocityY(400);
@@ -626,10 +631,13 @@ class GameScene extends Phaser.Scene {
       
 
       // Camera tracking
-      if (player.body.position.y < highestPlayerBodyPosition){
-        highestPlayerBodyPosition = player.body.position.y;
+      if (startGameScene){
+        if (player.body.position.y < highestPlayerBodyPosition){
+          highestPlayerBodyPosition = player.body.position.y;
+        }
+        camera.setBounds(0, (highestPlayerBodyPosition - (gameHeight/2)), gameWidth, gameHeight);
       }
-      camera.setBounds(0, (highestPlayerBodyPosition - (gameHeight/2)), gameWidth, gameHeight);
+    
      
 
 
@@ -642,7 +650,7 @@ class GameScene extends Phaser.Scene {
 
       // Game Over
 
-      if (playerPositionY <= highestReachedDistance -  (gameHeight/2) && gameOver == false){
+      if (playerPositionY <= highestReachedDistance -  (gameHeight/2) && gameOver == false && startGameScene){
         killPlayer();
       }
 
@@ -739,7 +747,11 @@ class GameScene extends Phaser.Scene {
 
       // New Stage Creation
 
-      if ((highestReachedDistance > (1000 * stageTracker)) || firstTime){
+      if (((highestReachedDistance > (1000 * stageTracker)) || firstTime) && startGameScene){
+        //this.add.image(0, gameHeight-(1000*stageTracker), 'background').setOrigin(0,0).setScale(2);
+        //this.add.image(0, gameHeight-400-(1000*stageTracker), 'background').setOrigin(0,0).setScale(2);
+        //this.add.image(0, gameHeight-800-(1000*stageTracker), 'background').setOrigin(0,0).setScale(2);
+
         if (!firstTime){
           lastY = highestYPos;
           stageEnd = lastY - 1400;
@@ -751,8 +763,8 @@ class GameScene extends Phaser.Scene {
 
         while (lastY > stageEnd){
           lastX = 0;
-          while (lastX < gameWidth-40){
-            lastX = getRandomPosition(lastX + 40, lastX + 280);
+       
+            lastX = getRandomPosition(gameWidth*0.1, gameWidth*0.7);
             lastY = getRandomPosition(lastY-40, lastY-120);
             var platformDecision = getRandom(0, 10);
             var enemyDecision = getRandom(0, 20);
@@ -807,7 +819,6 @@ class GameScene extends Phaser.Scene {
               lastSolidPlatform = false;
               collectibleNumbs ++;
 
-            }
 
           }
           
@@ -978,11 +989,26 @@ export class HomePage implements OnInit {
     phaserGame: Phaser.Game;
     config: Phaser.Types.Core.GameConfig;
 
+    
     constructor() {
-        this.config = {
+      var baseWidth;
+      var baseHeight;
+      var maxWidth = window.innerWidth;
+      var maxHeight = window.innerHeight;
+      var ratioWidth = maxWidth / CONFIG.DEFAULT_WIDTH;
+      var ratioHeight = maxHeight / CONFIG.DEFAULT_HEIGHT;
+      
+
+      if (ratioHeight < ratioWidth) {
+        baseWidth = ratioHeight*CONFIG.DEFAULT_WIDTH;
+        baseHeight = ratioHeight*CONFIG.DEFAULT_HEIGHT;
+      }
+      else{
+        baseWidth = ratioWidth*CONFIG.DEFAULT_WIDTH;
+        baseHeight = ratioWidth*CONFIG.DEFAULT_HEIGHT;
+      }
+      this.config = {
             type: Phaser.CANVAS,
-            width: window.innerWidth,
-            height: window.innerHeight,
             backgroundColor: '#8bcbfc',
             physics: {
                 default: 'arcade',
@@ -992,25 +1018,25 @@ export class HomePage implements OnInit {
                 }
             },
             scale:{
-              mode: Phaser.Scale.WIDTH_CONTROLS_HEIGHT,
+              mode: Phaser.Scale.FIT,
               autoCenter: Phaser.Scale.CENTER_BOTH,
+              width: CONFIG.DEFAULT_WIDTH,
+              height: CONFIG.DEFAULT_HEIGHT,
               min: {
-                width: 360,
-                height: 640
+                width: baseWidth,
+                height:  baseHeight
               },
               max: {
-                width: 1080,
-                height: 1920
+                width: 0,
+                height: 0
               },
-              zoom: 1,
-              autoRound: false,
+              parent: 'game',
+
             }, 
-            parent: 'game',
             scene: [StartScene, GameScene, PauseScene, UIScene, GameOverScene],
         };
     }
     ngOnInit(): void {
         this.phaserGame = new Phaser.Game(this.config);
     }
-}
-
+    }

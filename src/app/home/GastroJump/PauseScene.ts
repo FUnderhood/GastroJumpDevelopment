@@ -1,8 +1,15 @@
 import { Global } from './global'
 import CONFIG from 'src/app/home/GastroJump/config'
+import { startMusic } from 'src/app/home/GastroJump/BackgroundMusicScene'
+import { stopMusic } from 'src/app/home/GastroJump/BackgroundMusicScene'
 
 var gameWidth = CONFIG.DEFAULT_WIDTH;
 var gameHeight = CONFIG.DEFAULT_HEIGHT;
+var newVisit = true;
+var buttonBackgroundMusic;
+var buttonSoundEffects;
+var buttonTouch;
+var buttonMotion;
 
 export class PauseScene extends Phaser.Scene {
       constructor(config) {
@@ -25,21 +32,33 @@ export class PauseScene extends Phaser.Scene {
     create(){
         var backgroundOrangeTransparent = this.add.sprite(0, 0, 'backgroundOrangeTransparent').setOrigin(0,0);
         var titlePaused = this.add.sprite(0, -20, 'titlePaused').setOrigin(0,0);
-        var buttonSoundEffects = this.add.sprite(190, 230, 'buttonSoundEffects').setOrigin(0,0).setInteractive();
-        var buttonBackgroundMusic = this.add.sprite(5, 230, 'buttonBackgroundMusic').setOrigin(0,0).setInteractive();
         var buttonResume = this.add.sprite(117, 700, 'buttonResume').setOrigin(0,0).setInteractive();
 
-        if (Global.controlType == CONFIG.GYROSCOPE_CONTROL_TYPE){
-          var buttonMotion = this.add.sprite(0, 360, 'buttonMotionSelected').setOrigin(0,0).setInteractive();
-          var buttonTouch = this.add.sprite(0, 460, 'buttonTouch').setOrigin(0,0).setInteractive();
-        }
-        else if (Global.controlType == CONFIG.TOUCH_CONTROL_TYPE){
-          var buttonMotion = this.add.sprite(0, 360, 'buttonMotion').setOrigin(0,0).setInteractive();
-          var buttonTouch = this.add.sprite(0, 460, 'buttonTouchSelected').setOrigin(0,0).setInteractive();
+        if (Global.backgroundMusic == true){
+          buttonBackgroundMusic = this.add.sprite(5, 230, 'buttonBackgroundMusic').setOrigin(0,0).setInteractive();
         }
         else{
-          var buttonMotion = this.add.sprite(0, 360, 'buttonMotion').setOrigin(0,0).setInteractive();
-          var buttonTouch = this.add.sprite(0, 460, 'buttonTouch').setOrigin(0,0).setInteractive();
+          buttonBackgroundMusic = this.add.sprite(5, 230, 'buttonBackgroundMusicOff').setOrigin(0,0).setInteractive();
+        }
+
+        if (Global.soundEffects == true){
+          buttonSoundEffects = this.add.sprite(190, 230, 'buttonSoundEffects').setOrigin(0,0).setInteractive();
+        }
+        else{
+          buttonSoundEffects = this.add.sprite(190, 230, 'buttonSoundEffectsOff').setOrigin(0,0).setInteractive();
+        }
+
+        if (Global.controlType == CONFIG.GYROSCOPE_CONTROL_TYPE){
+          buttonMotion = this.add.sprite(0, 360, 'buttonMotionSelected').setOrigin(0,0).setInteractive();
+          buttonTouch = this.add.sprite(0, 460, 'buttonTouch').setOrigin(0,0).setInteractive();
+        }
+        else if (Global.controlType == CONFIG.TOUCH_CONTROL_TYPE){
+          buttonMotion = this.add.sprite(0, 360, 'buttonMotion').setOrigin(0,0).setInteractive();
+          buttonTouch = this.add.sprite(0, 460, 'buttonTouchSelected').setOrigin(0,0).setInteractive();
+        }
+        else{
+          buttonMotion = this.add.sprite(0, 360, 'buttonMotion').setOrigin(0,0).setInteractive();
+          buttonTouch = this.add.sprite(0, 460, 'buttonTouch').setOrigin(0,0).setInteractive();
         }
 
         buttonTouch.on('pointerdown', function (pointer){
@@ -73,10 +92,12 @@ export class PauseScene extends Phaser.Scene {
           if (Global.backgroundMusic){
             buttonBackgroundMusic.setTexture('buttonBackgroundMusicOff');
             Global.backgroundMusic= false;
+            stopMusic();
           }
           else{
             buttonBackgroundMusic.setTexture('buttonBackgroundMusic');
             Global.backgroundMusic = true;
+            startMusic();
           }
         });
 
@@ -84,6 +105,7 @@ export class PauseScene extends Phaser.Scene {
           this.scene.run('GameScene');
           this.scene.get('GameScene').scene.bringToTop();
           Global.paused = false;
+          newVisit = true;
           this.scene.setActive(false).setVisible(false);
           this.scene.get('UIScene').scene.setVisible(true);
           this.scene.get('UIScene').scene.bringToTop();
@@ -92,6 +114,35 @@ export class PauseScene extends Phaser.Scene {
         }, this);
       }
     update(){
+      if (newVisit){
+        if (Global.backgroundMusic == true){
+          buttonBackgroundMusic.setTexture('buttonBackgroundMusic');
+        }
+        else{
+          buttonBackgroundMusic.setTexture('buttonBackgroundMusicOff');
+        }
+  
+        if (Global.soundEffects == true){
+          buttonSoundEffects.setTexture('buttonSoundEffects');
+        }
+        else{
+          buttonSoundEffects.setTexture('buttonSoundEffectsOff');
+        }
+  
+        if (Global.controlType == CONFIG.GYROSCOPE_CONTROL_TYPE){
+          buttonMotion.setTexture('buttonMotionSelected');
+          buttonTouch.setTexture('buttonTouch');
+        }
+        else if (Global.controlType == CONFIG.TOUCH_CONTROL_TYPE){
+          buttonMotion.setTexture('buttonMotion');
+          buttonTouch.setTexture('buttonTouchSelected');
+        }
+        else{
+          buttonMotion.setTexture('buttonMotion');
+          buttonTouch.setTexture('buttonTouch');
+        }
+        newVisit = false;
+      }
         
       }
     }

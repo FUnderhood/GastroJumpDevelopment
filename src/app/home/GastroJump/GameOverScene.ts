@@ -2,6 +2,9 @@ import { Global } from './global'
 import CONFIG from 'src/app/home/GastroJump/config'
 import { restartGame } from 'src/app/home/GastroJump/GameScene'
 import { loadFont } from 'src/app/home/GastroJump/global'
+import { startMusic } from 'src/app/home/GastroJump/BackgroundMusicScene'
+import { stopMusic } from 'src/app/home/GastroJump/BackgroundMusicScene'
+
 
 
 
@@ -42,6 +45,7 @@ export class GameOverScene extends Phaser.Scene {
             this.scene.get("UIScene").scene.setActive(true).setVisible(true);
             this.scene.setActive(false).setVisible(false);
             restartGame();
+            startMusic();
             } , this);
 
         buttonBackToStart.on('pointerdown', function (pointer){
@@ -50,7 +54,9 @@ export class GameOverScene extends Phaser.Scene {
             this.scene.run('StartScene');
             this.scene.get('StartScene').scene.setVisible(true).setActive(true);
             Global.startGameScene = false;
+            this.scene.get('BackgroundMusicScene').sound.remove(Global.currentBackgroundMusic);
             restartGame();
+            stopMusic();
             } , this);
     }
 

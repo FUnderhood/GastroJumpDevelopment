@@ -11,6 +11,7 @@ import { SettingsScene } from "src/app/home/GastroJump/SettingsScene"
 import { LeaderboardScene } from "src/app/home/GastroJump/LeaderboardScene"
 import { InfoScene } from "src/app/home/GastroJump/InfoScene"
 import { BackgroundScene } from "src/app/home/GastroJump/BackgroundScene"
+import { BackgroundMusicScene } from "src/app/home/GastroJump/BackgroundMusicScene"
 import CONFIG from 'src/app/home/GastroJump/config'
 import { Global } from './GastroJump/global'
 
@@ -72,7 +73,7 @@ export class HomePage implements OnInit {
               parent: 'game',
 
             }, 
-            scene: [StartScene, GameScene, PauseScene, UIScene, GameOverScene, SettingsScene, LeaderboardScene, InfoScene, BackgroundScene],
+            scene: [StartScene, GameScene, PauseScene, UIScene, GameOverScene, SettingsScene, LeaderboardScene, InfoScene, BackgroundScene, BackgroundMusicScene],
         };
     }
     ngOnInit(): void {

@@ -7,9 +7,11 @@ export namespace Global {
   export var highestReachedDistance: number = 0;
   export var scoreBonus: number = 0;
   export var startGameScene: boolean = false;
-  export var backgroundMusic: boolean = true;
-  export var soundEffects: boolean = true;
+  export var backgroundMusic: boolean = CONFIG.DEFAULT_BACKGROUNDMUSIC;
+  export var soundEffects: boolean = CONFIG.DEFAULT_SOUNDEFFECTS;
   export var paused: boolean = false;
+  export var currentBackgroundMusic;
+  export var gameOver: boolean = false;
 
 }
 

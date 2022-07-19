@@ -1,8 +1,11 @@
 import { Global } from './global'
 import CONFIG from 'src/app/home/GastroJump/config'
+import { startMusic } from 'src/app/home/GastroJump/BackgroundMusicScene'
+
 
 var gameWidth = CONFIG.DEFAULT_WIDTH;
 var gameHeight = CONFIG.DEFAULT_HEIGHT;
+
 
 export class StartScene extends Phaser.Scene {
   constructor(config) {
@@ -19,6 +22,7 @@ export class StartScene extends Phaser.Scene {
   }
 
   create(){
+    this.scene.run('BackgroundMusicScene');
     this.scene.launch('BackgroundScene')
     this.scene.sendToBack('BackgroundScene');
     this.scene.launch('GameScene');
@@ -38,6 +42,7 @@ export class StartScene extends Phaser.Scene {
       Global.startGameScene = true;
       this.scene.run('UIScene');
       this.scene.get('UIScene').scene.bringToTop();
+      startMusic();
     }, this);
 
     buttonPractice.on('pointerup', function (pointer){
@@ -46,6 +51,7 @@ export class StartScene extends Phaser.Scene {
       Global.startGameScene = true;
       this.scene.run('UIScene');
       this.scene.get('UIScene').scene.bringToTop();
+      startMusic();
     }, this);
 
     buttonScore.on('pointerup', function (pointer){
@@ -54,6 +60,7 @@ export class StartScene extends Phaser.Scene {
 
       this.scene.run('LeaderboardScene');
       this.scene.get('LeaderboardScene').scene.setVisible(true);
+      this.scene.get('LeaderboardScene').scene.bringToTop();
     }, this);
 
     buttonSettings.on('pointerup', function (pointer){
@@ -62,6 +69,7 @@ export class StartScene extends Phaser.Scene {
 
       this.scene.run('SettingsScene');
       this.scene.get('SettingsScene').scene.setVisible(true);
+      this.scene.get('SettingsScene').scene.bringToTop();
     }, this);
 
     iconInfo.on('pointerup', function (pointer){
@@ -70,6 +78,8 @@ export class StartScene extends Phaser.Scene {
 
       this.scene.run('InfoScene');
       this.scene.get('InfoScene').scene.setVisible(true);
+      this.scene.get('InfoScene').scene.bringToTop();
+
     }, this);
   }
 }

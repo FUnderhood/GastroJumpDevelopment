@@ -1,6 +1,8 @@
 import { Global } from './global'
 import CONFIG from 'src/app/home/GastroJump/config'
 import { platform } from 'process';
+import { startMusic } from 'src/app/home/GastroJump/BackgroundMusicScene'
+
 
 // GameConfigs
 
@@ -21,7 +23,6 @@ var lastY = playerStartPositionY;
 
 var stageTracker = 1;
 var playerPositionY;
-var gameOver = false;
 
 var changeDirectionTimer = 0;
 
@@ -96,6 +97,8 @@ var originalPlayerX = 0;
 
 var currentStage = 0;
 
+var audioStarted;
+var soundEffectJump;
 
 export class GameScene extends Phaser.Scene {
     constructor(config) {
@@ -129,10 +132,16 @@ export class GameScene extends Phaser.Scene {
       // World
       this.load.image('ground', 'assets/gameObjects/ground.png');
 
+      // Audio 
+      this.load.audio('soundEffectJump', 'assets/audio/soundEffects/cartoon-jump-6462.mp3')
+
+
+
+     
     }
 
     create() {
-
+      soundEffectJump = this.sound.add('soundEffectJump', {loop: false});
 
       // get Gyroscope direction
       gammaRotNeutral = gammaRot;
@@ -205,6 +214,12 @@ export class GameScene extends Phaser.Scene {
       }else{
         console.log("DeviceMotionEvent is not supported");
       }
+
+      //player.setCollideWorldBounds(true);
+      //this.physics.world.setBoundsCollision(true, true, false, false);
+      
+
+
     }
 
     
@@ -212,20 +227,27 @@ export class GameScene extends Phaser.Scene {
 
     update() {
 
+      this.physics.world.wrap(player, player.width / 6);
+      if (!Global.gameOver){
+        this.physics.world.setBounds(0, player.body.position.y-1000, gameWidth, gameHeight*4);
+      }
+
+
+
       // Check current stage
       if (Global.highestReachedDistance < CONFIG.STAGE_1_START){
         currentStage = 0
       }
-      else if (Global.highestReachedDistance > CONFIG.STAGE_1_START && Global.highestReachedDistance > CONFIG.STAGE_2_START){
+      else if (Global.highestReachedDistance > CONFIG.STAGE_1_START && Global.highestReachedDistance < CONFIG.STAGE_2_START){
         currentStage = 1
       }
-      else if (Global.highestReachedDistance < CONFIG.STAGE_2_START && Global.highestReachedDistance > CONFIG.STAGE_3_START){
+      else if (Global.highestReachedDistance > CONFIG.STAGE_2_START && Global.highestReachedDistance < CONFIG.STAGE_3_START){
         currentStage = 2
       }
-      else if (Global.highestReachedDistance < CONFIG.STAGE_3_START && Global.highestReachedDistance > CONFIG.STAGE_4_START){
+      else if (Global.highestReachedDistance > CONFIG.STAGE_3_START && Global.highestReachedDistance < CONFIG.STAGE_4_START){
         currentStage = 3
       }
-      else if (Global.highestReachedDistance < CONFIG.STAGE_4_START){
+      else if (Global.highestReachedDistance > CONFIG.STAGE_4_START){
         currentStage = 4
       }
 
@@ -240,12 +262,12 @@ export class GameScene extends Phaser.Scene {
       // Player Controls
 
       if (Global.controlType == CONFIG.DEFAULT_CONTROL_TYPE){
-        if (cursors.left.isDown && !gameOver)
+        if (cursors.left.isDown && !Global.gameOver)
         {
           player.setVelocityX(-250);
         }
 
-      else if (cursors.right.isDown && !gameOver)
+      else if (cursors.right.isDown && !Global.gameOver)
         {
           player.setVelocityX(250);
         }
@@ -261,12 +283,12 @@ export class GameScene extends Phaser.Scene {
         this.input.on('pointerdown', function (pointer) {
           pointerLocX = pointer.x;
           originalPlayerX = player.x;
-          if (pointerLocX < (originalPlayerX -20) && pointerLocX != 0 && !gameOver)  
+          if (pointerLocX < (originalPlayerX -20) && pointerLocX != 0 && !Global.gameOver)  
           { 
             player.setVelocityX(-250);
           }
   
-          else if (pointerLocX > (originalPlayerX +20) && pointerLocX != 0 && !gameOver)
+          else if (pointerLocX > (originalPlayerX +20) && pointerLocX != 0 && !Global.gameOver)
           {
             player.setVelocityX(250);
           }
@@ -286,11 +308,11 @@ export class GameScene extends Phaser.Scene {
 
   
       }
-      if (Global.controlType == CONFIG.GYROSCOPE_CONTROL_TYPE && !gameOver){
+      if (Global.controlType == CONFIG.GYROSCOPE_CONTROL_TYPE && !Global.gameOver){
         if ((gammaRot >= gammaRotNeutral- 5) && (gammaRot <= gammaRotNeutral + 5)){
           player.setVelocityX(0);
         }
-        else if (!gameOver){
+        else if (!Global.gameOver){
           var playerVelocity = (gammaRot - gammaRotNeutral) * 10;
           player.setVelocityX(playerVelocity);  
         }
@@ -298,22 +320,14 @@ export class GameScene extends Phaser.Scene {
       }
       
       // Permanent Jumping
-      if (player.body.touching.down && !gameOver && Global.startGameScene)
+      if (player.body.touching.down && !Global.gameOver && Global.startGameScene)
         {
             player.setVelocityY(-650);
+            if (Global.soundEffects){
+              soundEffectJump.play();
+            }
         }
 
-      
-      // Wrap around
-
-      if (player.body.position.x < 0){
-        player.setPosition(gameWidth-(player.width*0.2), player.body.position.y);
-      }
-
-      if (player.body.position.x > gameWidth){
-        player.setPosition(player.width*0.5, player.body.position.y);
-      }
-      
 
       // Camera tracking
       if (Global.startGameScene){
@@ -340,24 +354,21 @@ export class GameScene extends Phaser.Scene {
 
       // Game Over
 
-      if (playerPositionY <= Global.highestReachedDistance -  (gameHeight/2) && gameOver == false && Global.startGameScene){
+      if (playerPositionY <= Global.highestReachedDistance -  (gameHeight/2) && Global.gameOver == false && Global.startGameScene){
         killPlayer();
       }
 
-      if (gameOver && !gameOverTextCalled){
+      if (Global.gameOver && !gameOverTextCalled){
         
         if  (endScreenCountdown > 30){
+          this.physics.world.setBounds(0, playerStartPositionY-1000, gameWidth, gameHeight*4);
           gameOverTextCalled = true;
           this.scene.run("GameOverScene");
           //var gameOverGameScene = this.scene.get("GameOverScene");
           this.scene.get("GameOverScene").scene.bringToTop();
           this.scene.get("GameOverScene").scene.setVisible(true).setActive(true);
-
-          
-
           this.scene.get("UIScene").scene.setActive(false).setVisible(false);
-          
-          
+          startMusic();       
         }
         endScreenCountdown++;
       }
@@ -441,10 +452,7 @@ export class GameScene extends Phaser.Scene {
       // New Stage Creation
 
       if (((Global.highestReachedDistance > (1000 * stageTracker)) || firstTime) && Global.startGameScene){
-        //this.add.image(0, gameHeight-(1000*stageTracker), 'background').setOrigin(0,0).setScale(2);
-        //this.add.image(0, gameHeight-400-(1000*stageTracker), 'background').setOrigin(0,0).setScale(2);
-        //this.add.image(0, gameHeight-800-(1000*stageTracker), 'background').setOrigin(0,0).setScale(2);
-
+  
         if (!firstTime){
           lastY = highestYPos;
           stageEnd = lastY - 1400;
@@ -459,7 +467,7 @@ export class GameScene extends Phaser.Scene {
           lastX = 0;
        
             lastX = getRandom(gameWidth*0.1, gameWidth*0.7);
-            lastY = getRandom(lastY-90, lastY-120);
+            lastY = getRandom(lastY-120, lastY-160);
             var platformDecision = getRandom(0, 100);
             var enemyDecision = getRandom(0, 100);
             var powerUpDecision = getRandom(0, 100);
@@ -568,18 +576,21 @@ function makePlatform(x, y, type){
   }
   
   function killPlayer(){
-    gameOver = true;
+    Global.gameOver = true;
     player.setImmovable(true);
     player.body.moves = false;
     player.setTint(0xff0000);
   }
   
   function dropPlayer(player_character, touched_platform){
-    if (touched_platform.texture.key == "droppingPlatform" && touched_platform.body.touching.up){
+    if (touched_platform.texture.key == "droppingPlatform" && touched_platform.body.touching.up && player_character.body.touching.down){
       touched_platform.destroy();
+      setTimeout(() => {
+        player.body.setVelocityY(300);
+      }, 10);
     }
   }
-  
+
   function superJumpPlayer(player_character, powerUp){
     powerUp.destroy();
     player.body.setVelocityY(-1000);
@@ -615,9 +626,10 @@ export function restartGame(){
     player.body.moves = true;
     player.clearTint();
     player.setVelocityY(-650);
+
   
   
-    gameOver = false;
+    Global.gameOver = false;
     Global.highestReachedDistance = 0;
     lastY = playerStartPositionY;
     firstTime = true;

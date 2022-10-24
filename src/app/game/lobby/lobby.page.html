@@ -1,0 +1,41 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>lobby</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <ion-list>
+    <ion-item>
+      <ion-label>Nickname: </ion-label>
+      <ion-input type="text" [(ngModel)]="nickname" [clearInput]="true" placeholder="Enter tyour Nickname" value="nickname"></ion-input>
+    </ion-item>
+
+    <ion-item>
+      <ion-label>Genre </ion-label>
+      <ion-button class="genderButton" id="male" (click)="setGender('male')" >
+        <ion-icon name="male"></ion-icon>
+      </ion-button>
+      <ion-button class="genderButton" id="female" (click)="setGender('female')" >
+        <ion-icon name="female"></ion-icon>
+      </ion-button>
+      <ion-button class="genderButton" id="transgender" (click)="setGender('transgender')" >
+        <ion-icon name="transgender"></ion-icon>
+      </ion-button>
+    </ion-item>
+    <br>
+    <ion-button  color="primary" fill="outline" expand="block" (click)="navToCreateGame()" > create your game</ion-button>
+
+    <br>
+
+    <ion-item *ngFor="let game of loadedGames">
+      <ion-label text-wrap>
+        <p><b>Gamename: {{game.name}}</b></p>
+        <p>Game creator: {{game.nickname}}</p>
+        <p>Geschlecht: <ion-icon name={{game.gender}} ></ion-icon></p>
+      </ion-label>
+      <ion-button (click)="joinGame()" >join game</ion-button>
+    </ion-item>
+    
+  </ion-list>
+</ion-content>

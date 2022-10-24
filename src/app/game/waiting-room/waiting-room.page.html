@@ -1,0 +1,29 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>waiting-room</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <div class="ion-padding">
+    <p>
+      Hallo <b style="color: green;">{{nickname}}</b> ! <br>
+      Dein Spiel <b>{{game}}</b> wird für andere Spieler in der Lobby angezeigt
+    </p> <br> <br>
+
+
+    <div>
+      <p>
+        Warte auf Spieler... <br><br>
+      </p>
+    </div>
+  </div>
+</ion-content>
+
+<ion-footer>
+  <ion-toolbar>
+    <ion-buttons slot="end">
+      <ion-button (click)="navToLobby()">Lobby</ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-footer>
